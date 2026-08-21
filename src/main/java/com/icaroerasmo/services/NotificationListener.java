@@ -164,7 +164,7 @@ public class NotificationListener {
             }
         }
 
-        sb.append("<b>Detected:</b>\n");
+        sb.append("<b>").append(render("DETECTION_LABEL")).append("</b>\n");
         if (knownCount > 0) {
             sb.append("✓ ").append(render("DETECTION_KNOWN", knownCount, knownNames.toString())).append("\n");
         }
