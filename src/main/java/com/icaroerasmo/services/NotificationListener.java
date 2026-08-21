@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -79,12 +80,17 @@ public class NotificationListener {
         }
 
         boolean hasTemplate = message.template() != null && !message.template().isBlank();
+        boolean hasCaption = message.caption() != null;
         boolean hasRawHtml = message.rawHtml() != null;
-        if (hasTemplate && hasRawHtml) {
-            throw new AmqpRejectAndDontRequeueException("only one of template or rawHtml must be set");
+        int setCount = (hasTemplate ? 1 : 0) + (hasCaption ? 1 : 0) + (hasRawHtml ? 1 : 0);
+        if (setCount > 1) {
+            throw new AmqpRejectAndDontRequeueException("only one of template, caption, or rawHtml must be set");
         }
-        if (!hasTemplate && !hasRawHtml && !message.appendNoLogs()) {
-            throw new AmqpRejectAndDontRequeueException("template or rawHtml must be set");
+        if (setCount == 0 && !message.appendNoLogs()) {
+            throw new AmqpRejectAndDontRequeueException("template, caption, or rawHtml must be set");
+        }
+        if (hasCaption && message.mediaType() != MediaType.PHOTO && message.mediaType() != MediaType.ANIMATION) {
+            throw new AmqpRejectAndDontRequeueException("caption is only supported for PHOTO/ANIMATION media types");
         }
     }
 
@@ -92,7 +98,14 @@ public class NotificationListener {
         String prefix = modulePrefix(message.sender());
 
         String body;
-        if (message.template() != null && !message.template().isBlank()) {
+        if (message.caption() != null) {
+            body = switch (message.mediaType()) {
+                case PHOTO -> buildDetectionCaption(message.caption());
+                case ANIMATION -> buildGifCaption(message.caption());
+                default -> throw new AmqpRejectAndDontRequeueException(
+                        "caption is only supported for PHOTO/ANIMATION media types");
+            };
+        } else if (message.template() != null && !message.template().isBlank()) {
             String pattern;
             try {
                 pattern = translationService.translate(message.template());
@@ -114,6 +127,65 @@ public class NotificationListener {
         }
 
         return prefix + body;
+    }
+
+    private String render(String template, Object... args) {
+        try {
+            String pattern = translationService.translate(template);
+            return MessageFormat.format(pattern, args);
+        } catch (Exception e) {
+            throw new AmqpRejectAndDontRequeueException("Failed to render template: " + template, e);
+        }
+    }
+
+    private String buildDetectionCaption(NotificationMessage.CaptionSpec c) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<b>").append(render("DETECTION_HEADER", c.cameraName())).append("</b>\n");
+
+        double lowestDistance = c.detectedPeople().entrySet().stream()
+                .filter(e -> !"Unknown".equalsIgnoreCase(e.getKey()))
+                .mapToDouble(Map.Entry::getValue)
+                .min()
+                .orElse(100.0);
+        sb.append("<b>").append(render("DETECTION_BEST_MATCH", String.format("%.2f", lowestDistance))).append("</b>\n");
+        sb.append("<b>").append(render("DETECTION_FRAMES_IDENTIFIED", c.identityFrameCount())).append("</b>\n");
+        sb.append("<b>").append(render("DETECTION_FRAMES_TRACKED", c.totalTrackedFrames())).append("</b>\n\n");
+
+        int unknownCount = 0;
+        int knownCount = 0;
+        StringBuilder knownNames = new StringBuilder();
+        for (Map.Entry<String, Double> entry : c.detectedPeople().entrySet()) {
+            if ("Unknown".equalsIgnoreCase(entry.getKey())) {
+                unknownCount += (int) Math.round(entry.getValue());
+            } else {
+                knownCount++;
+                if (knownNames.length() > 0) knownNames.append(", ");
+                knownNames.append(entry.getKey());
+            }
+        }
+
+        sb.append("<b>Detected:</b>\n");
+        if (knownCount > 0) {
+            sb.append("✓ ").append(render("DETECTION_KNOWN", knownCount, knownNames.toString())).append("\n");
+        }
+        if (unknownCount > 0) {
+            sb.append("🔍 ").append(render("DETECTION_UNKNOWN", unknownCount)).append("\n");
+        }
+        if (knownNames.length() == 0 && unknownCount == 0) {
+            sb.append(render("DETECTION_NONE")).append("\n");
+        }
+
+        sb.append("\n").append(render("DETECTION_TIME",
+                java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+        return sb.toString();
+    }
+
+    private String buildGifCaption(NotificationMessage.CaptionSpec c) {
+        return String.format("<b>%s</b>\n<b>%s</b>\n<b>%s</b>\n<b>%s</b>",
+                render("GIF_HEADER"),
+                render("GIF_CAMERA", c.cameraName()),
+                render("GIF_FRAMES", c.frameCount()),
+                render("GIF_DURATION", String.format("%.1f", c.duration())));
     }
 
     private String modulePrefix(String sender) {
