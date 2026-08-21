@@ -1,0 +1,10 @@
+spring:
+  main:
+    web-application-type: none
+  application:
+    name: java-telegram-notifier
+
+logging:
+  level:
+    root: INFO
+    com.icaroerasmo: DEBUG
