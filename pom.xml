@@ -13,7 +13,7 @@
 
     <groupId>com.icaroerasmo</groupId>
     <artifactId>java-telegram-notifier</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <name>java-telegram-notifier</name>
     <description>RabbitMQ consumer that renders notification messages and sends them via Telegram</description>
 
