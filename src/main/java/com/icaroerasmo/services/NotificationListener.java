@@ -30,7 +30,7 @@ public class NotificationListener {
     private static final String ELLIPSIS = "…";
     private static final String NO_LOGS_SUFFIX = ". Nenhum registro encontrado.";
     private static final Set<String> ALLOWED_SENDERS =
-            Set.of("live-transmission", "recorder", "face-recognition");
+            Set.of("live-transmission", "recorder", "object-detection");
 
     private final TelegramBot telegramBot;
     private final TranslationService translationService;
@@ -192,7 +192,7 @@ public class NotificationListener {
         return switch (sender) {
             case "live-transmission" -> "[Live Transmission] ";
             case "recorder" -> "[Recorder] ";
-            case "face-recognition" -> "[Face Recognition] ";
+            case "object-detection" -> "[Object Detection] ";
             default -> throw new AmqpRejectAndDontRequeueException("Unknown sender: " + sender);
         };
     }
