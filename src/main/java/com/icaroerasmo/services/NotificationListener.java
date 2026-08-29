@@ -32,6 +32,7 @@ public class NotificationListener {
     private static final Set<String> ALLOWED_SENDERS =
             Set.of("live-transmission", "recorder", "object-detection");
 
+    private static final Set<String> INITIALIZATION_TEMPLATES = Set.of("COMPOSITOR_STARTED", "CAMERA_STARTED", "CAM_CONNECTED", "CAM_RECONNECTING", "CAM_HIBERNATE_COMPLETE");
     private final TelegramBot telegramBot;
     private final TranslationService translationService;
     private final NotifierProperties properties;
@@ -124,6 +125,10 @@ public class NotificationListener {
 
         if (message.appendNoLogs()) {
             body = body + NO_LOGS_SUFFIX;
+        }
+
+        if (message.template() != null && INITIALIZATION_TEMPLATES.contains(message.template()) && message.sentAt() != null) {
+            body = body + "\n🕐 " + message.sentAt();
         }
 
         return prefix + body;
