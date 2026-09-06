@@ -46,7 +46,7 @@ class NotificationListenerTest {
     void validateRejectsNullMediaType() {
         NotificationMessage message = new NotificationMessage(
                 "m1", "object-detection", null, "MOVEMENT_DETECTED",
-                List.of("garagem1"), null, null, null, null, false, null);
+                List.of("garagem1"), null, null, null, null, false, null, false);
         assertThrows(AmqpRejectAndDontRequeueException.class, () -> invoke("validate", message));
     }
 
@@ -54,7 +54,7 @@ class NotificationListenerTest {
     void validateRejectsNullPayloadForPhoto() {
         NotificationMessage message = new NotificationMessage(
                 "m1", "object-detection", MediaType.PHOTO, "MOVEMENT_DETECTED",
-                List.of("garagem1"), null, null, null, null, false, null);
+                List.of("garagem1"), null, null, null, null, false, null, false);
         assertThrows(AmqpRejectAndDontRequeueException.class, () -> invoke("validate", message));
     }
 
@@ -88,7 +88,7 @@ class NotificationListenerTest {
     private static NotificationMessage textMessage(String sender, String template) {
         return new NotificationMessage(
                 "m1", sender, MediaType.TEXT, template,
-                List.of("garagem1"), null, null, null, null, false, null);
+                List.of("garagem1"), null, null, null, null, false, null, false);
     }
 
     @SuppressWarnings("unchecked")
@@ -117,7 +117,7 @@ class NotificationListenerTest {
     void renderTextIncludesSentAtForCamConnected() {
         NotificationMessage message = new NotificationMessage(
                 "m2", "object-detection", MediaType.TEXT, "CAM_CONNECTED",
-                List.of("cam01"), null, null, null, null, false, "15/08/2024 14:30:00");
+                List.of("cam01"), null, null, null, null, false, "15/08/2024 14:30:00", false);
         String rendered = invoke("renderText", message);
         assertTrue(rendered.contains("🕐 15/08/2024 14:30:00"),
                 "Expected rendered text to contain timestamp for CAM_CONNECTED template");
@@ -126,7 +126,7 @@ class NotificationListenerTest {
     void renderTextDoesNotIncludeSentAtForMovementDetected() {
         NotificationMessage message = new NotificationMessage(
                 "m3", "object-detection", MediaType.TEXT, "MOVEMENT_DETECTED",
-                List.of("garagem1"), null, null, null, null, false, "15/08/2024 14:30:00");
+                List.of("garagem1"), null, null, null, null, false, "15/08/2024 14:30:00", false);
         String rendered = invoke("renderText", message);
         assertFalse(rendered.contains("🕐"),
                 "Expected rendered text to NOT contain timestamp for MOVEMENT_DETECTED template");

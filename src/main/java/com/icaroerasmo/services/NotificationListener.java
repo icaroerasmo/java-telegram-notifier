@@ -131,6 +131,10 @@ public class NotificationListener {
             body = body + "\n🕐 " + message.sentAt();
         }
 
+        if (message.delayed()) {
+            body = body + "\n\n⚠️ Mensagem atrasada — reenviada automaticamente.";
+        }
+
         return prefix + body;
     }
 

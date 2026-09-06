@@ -10,6 +10,7 @@ import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -51,7 +52,9 @@ public class RabbitConfig {
 
     @Bean
     public Queue telegramNotificationsDlq() {
-        return new Queue(TELEGRAM_NOTIFICATIONS_DLQ, true);
+        return QueueBuilder.durable(TELEGRAM_NOTIFICATIONS_DLQ)
+                .withArgument("x-message-ttl", 259200000)
+                .build();
     }
 
     @Bean
@@ -82,9 +85,31 @@ public class RabbitConfig {
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(messageConverter);
         factory.setAcknowledgeMode(AcknowledgeMode.AUTO);
-        factory.setConcurrentConsumers(1);
-        factory.setMaxConcurrentConsumers(1);
+        factory.setConcurrentConsumers(4);
+        factory.setMaxConcurrentConsumers(8);
         factory.setAdviceChain(retryOperationsInterceptor);
         return factory;
+    }
+
+    @Bean(name = "dlqRabbitListenerContainerFactory")
+    public SimpleRabbitListenerContainerFactory dlqRabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            Jackson2JsonMessageConverter messageConverter) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(messageConverter);
+        factory.setAcknowledgeMode(AcknowledgeMode.AUTO);
+        factory.setConcurrentConsumers(1);
+        factory.setMaxConcurrentConsumers(2);
+        return factory;
+    }
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory,
+                                         Jackson2JsonMessageConverter messageConverter) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(messageConverter);
+        template.setMandatory(true);
+        return template;
     }
 }
