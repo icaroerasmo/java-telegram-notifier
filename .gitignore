@@ -5,3 +5,9 @@ target/
 *.jar
 *.log
 .DS_Store
+
+# Eclipse
+.classpath
+.factorypath
+.project
+.settings/

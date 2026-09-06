@@ -14,7 +14,8 @@ public record NotificationMessage(
         String filename,
         byte[] payload,
         boolean appendNoLogs,
-        String sentAt) {
+        String sentAt,
+        boolean delayed) {
 
     public enum MediaType { TEXT, PHOTO, ANIMATION, DOCUMENT }
 
