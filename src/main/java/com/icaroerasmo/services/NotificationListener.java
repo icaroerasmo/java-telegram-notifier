@@ -37,6 +37,7 @@ public class NotificationListener {
     private final TranslationService translationService;
     private final NotifierProperties properties;
     private final AtomicLong lastSentAt = new AtomicLong(0);
+    private final Object sendLock = new Object();
 
     public NotificationListener(TelegramBot telegramBot,
                                 TranslationService translationService,
@@ -53,14 +54,35 @@ public class NotificationListener {
 
         validate(message);
         String text = renderText(message);
-        throttle();
+        sendWithThrottle(message, text);
+    }
 
-        try {
-            send(message, text);
+    /**
+     * Serializes all Telegram sends and enforces the minimum send interval.
+     * The slot is reserved BEFORE sending so failures do not bypass the throttle,
+     * and a 429 retry_after wait blocks subsequent sends as well.
+     */
+    private void sendWithThrottle(NotificationMessage message, String text) {
+        synchronized (sendLock) {
+            long now = System.currentTimeMillis();
+            long last = lastSentAt.get();
+            long wait = properties.minSendIntervalMs() - (now - last);
+            if (wait > 0) {
+                try {
+                    Thread.sleep(wait);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while throttling telegram sends", e);
+                }
+            }
             lastSentAt.set(System.currentTimeMillis());
-        } catch (Exception e) {
-            log.error("Failed to send telegram notification messageId={}", message.messageId(), e);
-            throw new RuntimeException("Failed to send telegram notification: " + message.messageId(), e);
+
+            try {
+                send(message, text);
+            } catch (Exception e) {
+                log.error("Failed to send telegram notification messageId={}", message.messageId(), e);
+                throw new RuntimeException("Failed to send telegram notification: " + message.messageId(), e);
+            }
         }
     }
 
@@ -217,32 +239,18 @@ public class NotificationListener {
 
     private void send(NotificationMessage message, String text) {
         String chatId = properties.telegram().chatId();
-        SendResponse response;
-        switch (message.mediaType()) {
-            case TEXT -> {
-                response = telegramBot.execute(
-                        new SendMessage(chatId, truncate(text, TEXT_MAX_LENGTH)).parseMode(ParseMode.HTML));
+        SendResponse response = execute(message, text, chatId);
+        if (!response.isOk() && response.errorCode() == 429) {
+            int retryAfter = response.parameters() != null && response.parameters().retryAfter() != null
+                    ? response.parameters().retryAfter() : 5;
+            log.warn("Telegram rate limited (429), retrying after {}s: messageId={}", retryAfter, message.messageId());
+            try {
+                Thread.sleep(retryAfter * 1000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while waiting for Telegram rate limit", e);
             }
-            case PHOTO -> {
-                response = telegramBot.execute(
-                        new SendPhoto(chatId, message.payload())
-                                .caption(truncate(text, CAPTION_MAX_LENGTH))
-                                .parseMode(ParseMode.HTML));
-            }
-            case ANIMATION -> {
-                response = telegramBot.execute(
-                        new SendAnimation(chatId, message.payload())
-                                .caption(truncate(text, CAPTION_MAX_LENGTH))
-                                .parseMode(ParseMode.HTML));
-            }
-            case DOCUMENT -> {
-                response = telegramBot.execute(
-                        new SendDocument(chatId, message.payload())
-                                .fileName(message.filename())
-                                .caption(truncate(text, CAPTION_MAX_LENGTH))
-                                .parseMode(ParseMode.HTML));
-            }
-            default -> throw new IllegalStateException("Unexpected media type: " + message.mediaType());
+            response = execute(message, text, chatId);
         }
         if (!response.isOk()) {
             throw new RuntimeException("Telegram send failed: code=" + response.errorCode() +
@@ -250,24 +258,30 @@ public class NotificationListener {
         }
     }
 
+    private SendResponse execute(NotificationMessage message, String text, String chatId) {
+        return switch (message.mediaType()) {
+            case TEXT -> telegramBot.execute(
+                    new SendMessage(chatId, truncate(text, TEXT_MAX_LENGTH)).parseMode(ParseMode.HTML));
+            case PHOTO -> telegramBot.execute(
+                    new SendPhoto(chatId, message.payload())
+                            .caption(truncate(text, CAPTION_MAX_LENGTH))
+                            .parseMode(ParseMode.HTML));
+            case ANIMATION -> telegramBot.execute(
+                    new SendAnimation(chatId, message.payload())
+                            .caption(truncate(text, CAPTION_MAX_LENGTH))
+                            .parseMode(ParseMode.HTML));
+            case DOCUMENT -> telegramBot.execute(
+                    new SendDocument(chatId, message.payload())
+                            .fileName(message.filename())
+                            .caption(truncate(text, CAPTION_MAX_LENGTH))
+                            .parseMode(ParseMode.HTML));
+        };
+    }
+
     private static String truncate(String text, int maxLength) {
         if (text.length() <= maxLength) {
             return text;
         }
         return text.substring(0, maxLength - 1) + ELLIPSIS;
-    }
-
-    private void throttle() {
-        long now = System.currentTimeMillis();
-        long last = lastSentAt.get();
-        long wait = properties.minSendIntervalMs() - (now - last);
-        if (wait > 0) {
-            try {
-                Thread.sleep(wait);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Interrupted while throttling telegram sends", e);
-            }
-        }
     }
 }
