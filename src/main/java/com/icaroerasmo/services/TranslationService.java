@@ -14,7 +14,7 @@ public class TranslationService {
     private final MessageSource messageSource;
     private final Locale locale;
 
-    public TranslationService(MessageSource messageSource, @Value("${locale:pt-BR}") String locale) {
+    public TranslationService(MessageSource messageSource, @Value("${general.locale:pt-BR}") String locale) {
         this.messageSource = messageSource;
         this.locale = resolveLocale(locale);
     }
