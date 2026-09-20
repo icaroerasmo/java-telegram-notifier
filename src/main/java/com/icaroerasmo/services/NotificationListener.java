@@ -2,7 +2,7 @@ package com.icaroerasmo.services;
 
 import com.icaroerasmo.messaging.NotificationMessage;
 import com.icaroerasmo.messaging.NotificationMessage.MediaType;
-import com.icaroerasmo.properties.NotifierProperties;
+import com.icaroerasmo.properties.TelegramProperties;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.request.SendAnimation;
@@ -35,13 +35,13 @@ public class NotificationListener {
     private static final Set<String> INITIALIZATION_TEMPLATES = Set.of("COMPOSITOR_STARTED", "CAMERA_STARTED", "CAM_CONNECTED", "CAM_RECONNECTING", "CAM_HIBERNATE_COMPLETE");
     private final TelegramBot telegramBot;
     private final TranslationService translationService;
-    private final NotifierProperties properties;
+    private final TelegramProperties properties;
     private final AtomicLong lastSentAt = new AtomicLong(0);
     private final Object sendLock = new Object();
 
     public NotificationListener(TelegramBot telegramBot,
                                 TranslationService translationService,
-                                NotifierProperties properties) {
+                                TelegramProperties properties) {
         this.telegramBot = telegramBot;
         this.translationService = translationService;
         this.properties = properties;
@@ -238,7 +238,7 @@ public class NotificationListener {
     }
 
     private void send(NotificationMessage message, String text) {
-        String chatId = properties.telegram().chatId();
+        String chatId = properties.chatId();
         SendResponse response = execute(message, text, chatId);
         if (!response.isOk() && response.errorCode() == 429) {
             int retryAfter = response.parameters() != null && response.parameters().retryAfter() != null

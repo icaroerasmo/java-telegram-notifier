@@ -2,7 +2,7 @@ package com.icaroerasmo.services;
 
 import com.icaroerasmo.messaging.NotificationMessage;
 import com.icaroerasmo.messaging.NotificationMessage.MediaType;
-import com.icaroerasmo.properties.NotifierProperties;
+import com.icaroerasmo.properties.TelegramProperties;
 import com.pengrad.telegrambot.TelegramBot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,9 +31,9 @@ class NotificationListenerTest {
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("messages");
         messageSource.setDefaultEncoding("UTF-8");
-        NotifierProperties properties =
-                new NotifierProperties("pt-BR", 2000, new NotifierProperties.Telegram("chat-id", "bot-token"));
-        listener = new NotificationListener(telegramBot, new TranslationService(messageSource, properties), properties);
+        TelegramProperties properties =
+                new TelegramProperties(2000, "chat-id", "bot-token");
+        listener = new NotificationListener(telegramBot, new TranslationService(messageSource, "pt-BR"), properties);
     }
 
     @Test

@@ -1,6 +1,6 @@
 package com.icaroerasmo.services;
 
-import com.icaroerasmo.properties.NotifierProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +14,9 @@ public class TranslationService {
     private final MessageSource messageSource;
     private final Locale locale;
 
-    public TranslationService(MessageSource messageSource, NotifierProperties properties) {
+    public TranslationService(MessageSource messageSource, @Value("${locale:pt-BR}") String locale) {
         this.messageSource = messageSource;
-        this.locale = resolveLocale(properties.locale());
+        this.locale = resolveLocale(locale);
     }
 
     public String translate(String key, Object... args) {

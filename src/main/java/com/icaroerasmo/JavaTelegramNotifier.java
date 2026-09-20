@@ -1,12 +1,12 @@
 package com.icaroerasmo;
 
-import com.icaroerasmo.properties.NotifierProperties;
+import com.icaroerasmo.properties.TelegramProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties(NotifierProperties.class)
+@EnableConfigurationProperties(TelegramProperties.class)
 public class JavaTelegramNotifier {
 
     public static void main(String[] args) {

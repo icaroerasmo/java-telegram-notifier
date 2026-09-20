@@ -1,6 +1,6 @@
 package com.icaroerasmo.config;
 
-import com.icaroerasmo.properties.NotifierProperties;
+import com.icaroerasmo.properties.TelegramProperties;
 import com.pengrad.telegrambot.TelegramBot;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
@@ -11,8 +11,8 @@ import org.springframework.context.support.ResourceBundleMessageSource;
 public class BeansAndConfig {
 
     @Bean
-    public TelegramBot telegramBot(NotifierProperties properties) {
-        return new TelegramBot(properties.telegram().botToken());
+    public TelegramBot telegramBot(TelegramProperties properties) {
+        return new TelegramBot(properties.botToken());
     }
 
     @Bean
