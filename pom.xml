@@ -13,7 +13,7 @@
 
     <groupId>com.icaroerasmo</groupId>
     <artifactId>java-telegram-notifier</artifactId>
-    <version>0.2.7</version>
+    <version>0.3.0</version>
     <name>java-telegram-notifier</name>
     <description>RabbitMQ consumer that renders notification messages and sends them via Telegram</description>
 
@@ -29,6 +29,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
