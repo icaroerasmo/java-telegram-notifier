@@ -87,6 +87,7 @@ public class RabbitConfig {
         factory.setAcknowledgeMode(AcknowledgeMode.AUTO);
         factory.setConcurrentConsumers(4);
         factory.setMaxConcurrentConsumers(8);
+        factory.setPrefetchCount(1);
         factory.setAdviceChain(retryOperationsInterceptor);
         return factory;
     }
