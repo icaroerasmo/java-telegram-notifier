@@ -77,7 +77,9 @@ public class NotificationController {
             return MediaType.IMAGE_PNG;
         }
         if (lower.endsWith(".gif")) {
-            return MediaType.IMAGE_GIF;
+            // object-detection envia MP4 (H264) como "animation"; o Telegram
+            // nomeia com extensao .gif mas o conteudo real e MP4.
+            return MediaType.valueOf("video/mp4");
         }
         if (lower.endsWith(".mp4")) {
             return MediaType.valueOf("video/mp4");
