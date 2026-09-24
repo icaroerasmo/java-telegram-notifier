@@ -26,10 +26,28 @@ public class RabbitConfig {
     public static final String TELEGRAM_NOTIFICATIONS_ROUTING_KEY = "telegram.notifications";
     public static final String TELEGRAM_DLX_EXCHANGE = "telegram.dlx";
     public static final String TELEGRAM_NOTIFICATIONS_DLQ = "telegram.notifications.dlq";
+    public static final String DASHBOARD_EXCHANGE = "dashboard.exchange";
+    public static final String DASHBOARD_NOTIFICATIONS_QUEUE = "dashboard.notifications";
+    public static final String DASHBOARD_NOTIFICATIONS_ROUTING_KEY = "dashboard.notifications";
 
     @Bean
     public DirectExchange telegramExchange() {
         return new DirectExchange(TELEGRAM_EXCHANGE);
+    }
+
+    @Bean
+    public DirectExchange dashboardExchange() {
+        return new DirectExchange(DASHBOARD_EXCHANGE);
+    }
+
+    @Bean
+    public Queue dashboardNotificationsQueue() {
+        return QueueBuilder.durable(DASHBOARD_NOTIFICATIONS_QUEUE).build();
+    }
+
+    @Bean
+    public Binding dashboardNotificationsBinding(Queue dashboardNotificationsQueue, DirectExchange dashboardExchange) {
+        return BindingBuilder.bind(dashboardNotificationsQueue).to(dashboardExchange).with(DASHBOARD_NOTIFICATIONS_ROUTING_KEY);
     }
 
     @Bean
