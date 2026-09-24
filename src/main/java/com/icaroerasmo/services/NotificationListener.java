@@ -19,6 +19,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -70,6 +71,7 @@ public class NotificationListener {
 
         String fileId = extractFileId(message, response);
         String summary = buildSummary(message, text);
+        long ts = parseTimestamp(message.sentAt());
         NotificationSummary notificationSummary = new NotificationSummary(
                 message.messageId(),
                 message.sender(),
@@ -77,8 +79,11 @@ public class NotificationListener {
                 message.template(),
                 summary,
                 fileId,
+                message.filename(),
                 message.sentAt(),
-                parseTimestamp(message.sentAt()));
+                ts,
+                formatDate(ts),
+                formatHour(ts));
 
         notificationStore.append(notificationSummary);
         summaryPublisher.publish(notificationSummary);
@@ -379,5 +384,14 @@ public class NotificationListener {
         } catch (Exception e) {
             return System.currentTimeMillis();
         }
+    }
+
+    private static String formatDate(long ts) {
+        return Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate().toString();
+    }
+
+    private static String formatHour(long ts) {
+        return Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalTime()
+                .format(DateTimeFormatter.ofPattern("HH"));
     }
 }

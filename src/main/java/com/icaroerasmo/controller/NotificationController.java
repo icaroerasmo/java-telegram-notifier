@@ -40,17 +40,22 @@ public class NotificationController {
     }
 
     @GetMapping("/media/{fileId}")
-    public ResponseEntity<byte[]> getMedia(@PathVariable String fileId) {
+    public ResponseEntity<byte[]> getMedia(@PathVariable String fileId,
+                                           @RequestParam(value = "filename", required = false) String filename) {
         try {
             GetFileResponse response = telegramBot.execute(new GetFile(fileId));
             if (!response.isOk() || response.file() == null) {
                 return ResponseEntity.notFound().build();
             }
             byte[] bytes = telegramBot.getFileContent(response.file());
-            return ResponseEntity.ok()
+            ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, inferMediaType(response.file().filePath()).toString())
-                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
-                    .body(bytes);
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600");
+            if (filename != null && !filename.isBlank()) {
+                builder.header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename.replace("\"", "") + "\"");
+            }
+            return builder.body(bytes);
         } catch (Exception e) {
             log.warn("Failed to fetch media fileId={}: {}", fileId, e.getMessage());
             return ResponseEntity.status(500).build();

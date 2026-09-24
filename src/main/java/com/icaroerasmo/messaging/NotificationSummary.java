@@ -7,6 +7,9 @@ public record NotificationSummary(
         String kind,
         String summary,
         String fileId,
+        String filename,
         String sentAt,
-        long timestamp) {
+        long timestamp,
+        String date,
+        String hour) {
 }
