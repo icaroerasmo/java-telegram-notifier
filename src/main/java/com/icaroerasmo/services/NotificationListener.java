@@ -329,7 +329,12 @@ public class NotificationListener {
                 PhotoSize[] photos = msg.photo();
                 yield (photos != null && photos.length > 0) ? photos[photos.length - 1].fileId() : null;
             }
-            case ANIMATION -> msg.animation() != null ? msg.animation().fileId() : null;
+            case ANIMATION -> {
+                if (msg.animation() != null) yield msg.animation().fileId();
+                if (msg.video() != null) yield msg.video().fileId();
+                if (msg.document() != null) yield msg.document().fileId();
+                yield null;
+            }
             case DOCUMENT -> msg.document() != null ? msg.document().fileId() : null;
         };
     }
