@@ -2,8 +2,11 @@ package com.icaroerasmo.services;
 
 import com.icaroerasmo.messaging.NotificationMessage;
 import com.icaroerasmo.messaging.NotificationMessage.MediaType;
+import com.icaroerasmo.messaging.NotificationSummary;
 import com.icaroerasmo.properties.TelegramProperties;
 import com.pengrad.telegrambot.TelegramBot;
+import com.pengrad.telegrambot.model.Message;
+import com.pengrad.telegrambot.model.PhotoSize;
 import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.request.SendAnimation;
 import com.pengrad.telegrambot.request.SendDocument;
@@ -16,6 +19,9 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,15 +42,21 @@ public class NotificationListener {
     private final TelegramBot telegramBot;
     private final TranslationService translationService;
     private final TelegramProperties properties;
+    private final NotificationStore notificationStore;
+    private final NotificationSummaryPublisher summaryPublisher;
     private final AtomicLong lastSentAt = new AtomicLong(0);
     private final Object sendLock = new Object();
 
     public NotificationListener(TelegramBot telegramBot,
                                 TranslationService translationService,
-                                TelegramProperties properties) {
+                                TelegramProperties properties,
+                                NotificationStore notificationStore,
+                                NotificationSummaryPublisher summaryPublisher) {
         this.telegramBot = telegramBot;
         this.translationService = translationService;
         this.properties = properties;
+        this.notificationStore = notificationStore;
+        this.summaryPublisher = summaryPublisher;
     }
 
     @RabbitListener(queues = "telegram.notifications")
@@ -54,7 +66,22 @@ public class NotificationListener {
 
         validate(message);
         String text = renderText(message);
-        sendWithThrottle(message, text);
+        SendResponse response = sendWithThrottle(message, text);
+
+        String fileId = extractFileId(message, response);
+        String summary = buildSummary(message, text);
+        NotificationSummary notificationSummary = new NotificationSummary(
+                message.messageId(),
+                message.sender(),
+                message.mediaType().name(),
+                message.template(),
+                summary,
+                fileId,
+                message.sentAt(),
+                parseTimestamp(message.sentAt()));
+
+        notificationStore.append(notificationSummary);
+        summaryPublisher.publish(notificationSummary);
     }
 
     /**
@@ -62,7 +89,7 @@ public class NotificationListener {
      * The slot is reserved BEFORE sending so failures do not bypass the throttle,
      * and a 429 retry_after wait blocks subsequent sends as well.
      */
-    private void sendWithThrottle(NotificationMessage message, String text) {
+    private SendResponse sendWithThrottle(NotificationMessage message, String text) {
         synchronized (sendLock) {
             long now = System.currentTimeMillis();
             long last = lastSentAt.get();
@@ -78,7 +105,7 @@ public class NotificationListener {
             lastSentAt.set(System.currentTimeMillis());
 
             try {
-                send(message, text);
+                return send(message, text);
             } catch (Exception e) {
                 log.error("Failed to send telegram notification messageId={}", message.messageId(), e);
                 throw new RuntimeException("Failed to send telegram notification: " + message.messageId(), e);
@@ -237,7 +264,7 @@ public class NotificationListener {
                 .replace("'", "&#39;");
     }
 
-    private void send(NotificationMessage message, String text) {
+    private SendResponse send(NotificationMessage message, String text) {
         String chatId = properties.chatId();
         SendResponse response = execute(message, text, chatId);
         if (!response.isOk() && response.errorCode() == 429) {
@@ -256,6 +283,7 @@ public class NotificationListener {
             throw new RuntimeException("Telegram send failed: code=" + response.errorCode() +
                     " description=" + response.description());
         }
+        return response;
     }
 
     private SendResponse execute(NotificationMessage message, String text, String chatId) {
@@ -283,5 +311,74 @@ public class NotificationListener {
             return text;
         }
         return text.substring(0, maxLength - 1) + ELLIPSIS;
+    }
+
+    private String extractFileId(NotificationMessage message, SendResponse response) {
+        if (response == null || response.message() == null) {
+            return null;
+        }
+        Message msg = response.message();
+        return switch (message.mediaType()) {
+            case TEXT -> msg.messageId() != null ? String.valueOf(msg.messageId()) : null;
+            case PHOTO -> {
+                PhotoSize[] photos = msg.photo();
+                yield (photos != null && photos.length > 0) ? photos[photos.length - 1].fileId() : null;
+            }
+            case ANIMATION -> msg.animation() != null ? msg.animation().fileId() : null;
+            case DOCUMENT -> msg.document() != null ? msg.document().fileId() : null;
+        };
+    }
+
+    private String buildSummary(NotificationMessage message, String text) {
+        return switch (message.mediaType()) {
+            case TEXT -> text;
+            case PHOTO -> buildDetectionSummary(message.caption());
+            case ANIMATION -> buildGifSummary(message.caption());
+            case DOCUMENT -> "📄 " + (message.filename() != null ? message.filename() : "documento");
+        };
+    }
+
+    private String buildDetectionSummary(NotificationMessage.CaptionSpec c) {
+        if (c == null || c.detectedPeople() == null) {
+            return "👤 Detecção";
+        }
+        int known = 0;
+        int unknown = 0;
+        for (Map.Entry<String, Double> entry : c.detectedPeople().entrySet()) {
+            if ("Unknown".equalsIgnoreCase(entry.getKey())) {
+                unknown += (int) Math.round(entry.getValue());
+            } else {
+                known++;
+            }
+        }
+        String cam = c.cameraName() != null ? c.cameraName() : "";
+        if (known == 0 && unknown == 0) {
+            return "👤 Detecção · " + cam;
+        }
+        return "👤 Detecção · " + cam + " · " + known + " conhecidos, " + unknown + " desconhecidos";
+    }
+
+    private String buildGifSummary(NotificationMessage.CaptionSpec c) {
+        if (c == null) {
+            return "🎬 Animação";
+        }
+        String cam = c.cameraName() != null ? c.cameraName() : "";
+        double dur = c.duration() != null ? c.duration() : 0.0;
+        return "🎬 Animação · " + cam + " · ~" + String.format("%.1f", dur) + "s";
+    }
+
+    private static long parseTimestamp(String sentAt) {
+        if (sentAt == null || sentAt.isBlank()) {
+            return System.currentTimeMillis();
+        }
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            return LocalDateTime.parse(sentAt, formatter)
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli();
+        } catch (Exception e) {
+            return System.currentTimeMillis();
+        }
     }
 }

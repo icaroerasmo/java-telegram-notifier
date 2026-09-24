@@ -33,7 +33,12 @@ class NotificationListenerTest {
         messageSource.setDefaultEncoding("UTF-8");
         TelegramProperties properties =
                 new TelegramProperties(2000, "chat-id", "bot-token");
-        listener = new NotificationListener(telegramBot, new TranslationService(messageSource, "pt-BR"), properties);
+        listener = new NotificationListener(
+                telegramBot,
+                new TranslationService(messageSource, "pt-BR"),
+                properties,
+                mock(NotificationStore.class),
+                mock(NotificationSummaryPublisher.class));
     }
 
     @Test
