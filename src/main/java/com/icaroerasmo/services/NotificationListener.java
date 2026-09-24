@@ -320,6 +320,11 @@ public class NotificationListener {
 
     private String extractFileId(NotificationMessage message, SendResponse response) {
         if (response == null || response.message() == null) {
+            log.warn("[extractFileId] null response/message: mediaType={} isOk={} errorCode={} description={}",
+                    message.mediaType(),
+                    response != null ? response.isOk() : "null",
+                    response != null ? response.errorCode() : "null",
+                    response != null ? response.description() : "null");
             return null;
         }
         Message msg = response.message();
@@ -330,9 +335,16 @@ public class NotificationListener {
                 yield (photos != null && photos.length > 0) ? photos[photos.length - 1].fileId() : null;
             }
             case ANIMATION -> {
-                if (msg.animation() != null) yield msg.animation().fileId();
-                if (msg.video() != null) yield msg.video().fileId();
-                if (msg.document() != null) yield msg.document().fileId();
+                if (msg.animation() != null && msg.animation().fileId() != null) yield msg.animation().fileId();
+                if (msg.video() != null && msg.video().fileId() != null) yield msg.video().fileId();
+                if (msg.videoNote() != null && msg.videoNote().fileId() != null) yield msg.videoNote().fileId();
+                if (msg.document() != null && msg.document().fileId() != null) yield msg.document().fileId();
+                log.warn("[extractFileId] ANIMATION: no fileId found. animation={} video={} videoNote={} document={} errorCode={} description={}",
+                        msg.animation() != null ? msg.animation().fileId() : "null",
+                        msg.video() != null ? msg.video().fileId() : "null",
+                        msg.videoNote() != null ? msg.videoNote().fileId() : "null",
+                        msg.document() != null ? msg.document().fileId() : "null",
+                        response.errorCode(), response.description());
                 yield null;
             }
             case DOCUMENT -> msg.document() != null ? msg.document().fileId() : null;
