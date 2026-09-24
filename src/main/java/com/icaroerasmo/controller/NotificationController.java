@@ -44,6 +44,9 @@ public class NotificationController {
                                            @RequestParam(value = "filename", required = false) String filename) {
         try {
             GetFileResponse response = telegramBot.execute(new GetFile(fileId));
+            log.warn("[getMedia] fileId={} isOk={} errorCode={} description={} filePath={}",
+                    fileId, response.isOk(), response.errorCode(), response.description(),
+                    response.file() != null ? response.file().filePath() : "null");
             if (!response.isOk() || response.file() == null) {
                 return ResponseEntity.notFound().build();
             }

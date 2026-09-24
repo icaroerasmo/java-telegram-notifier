@@ -328,6 +328,13 @@ public class NotificationListener {
             return null;
         }
         Message msg = response.message();
+        if (message.mediaType() == MediaType.ANIMATION) {
+            log.warn("[extractFileId] ANIMATION fields: animation={} video={} videoNote={} document={}",
+                    msg.animation() != null ? msg.animation().fileId() : "null",
+                    msg.video() != null ? msg.video().fileId() : "null",
+                    msg.videoNote() != null ? msg.videoNote().fileId() : "null",
+                    msg.document() != null ? msg.document().fileId() : "null");
+        }
         return switch (message.mediaType()) {
             case TEXT -> msg.messageId() != null ? String.valueOf(msg.messageId()) : null;
             case PHOTO -> {
