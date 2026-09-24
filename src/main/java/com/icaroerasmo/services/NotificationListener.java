@@ -331,10 +331,9 @@ public class NotificationListener {
 
     private String buildSummary(NotificationMessage message, String text) {
         return switch (message.mediaType()) {
-            case TEXT -> text;
+            case TEXT, DOCUMENT -> text;
             case PHOTO -> buildDetectionSummary(message.caption());
             case ANIMATION -> buildGifSummary(message.caption());
-            case DOCUMENT -> "📄 " + (message.filename() != null ? message.filename() : "documento");
         };
     }
 
