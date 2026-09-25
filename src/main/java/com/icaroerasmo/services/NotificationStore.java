@@ -15,6 +15,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -81,5 +82,21 @@ public class NotificationStore {
         int size = list.size();
         int from = Math.max(0, size - limit);
         return list.subList(from, size);
+    }
+
+    /**
+     * Returns up to {@code limit} notifications older than {@code beforeTimestamp},
+     * newest first. Used for cursor-based pagination (infinite scroll).
+     */
+    public List<NotificationSummary> getBefore(long beforeTimestamp, int limit) {
+        List<NotificationSummary> result = new ArrayList<>(limit);
+        Iterator<NotificationSummary> it = recent.descendingIterator();
+        while (it.hasNext() && result.size() < limit) {
+            NotificationSummary summary = it.next();
+            if (summary.timestamp() < beforeTimestamp) {
+                result.add(summary);
+            }
+        }
+        return result;
     }
 }

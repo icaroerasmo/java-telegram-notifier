@@ -35,8 +35,13 @@ public class NotificationController {
     }
 
     @GetMapping("/notifications")
-    public List<NotificationSummary> getNotifications(@RequestParam(defaultValue = "100") int limit) {
-        return store.getRecent(Math.max(1, Math.min(limit, 1000)));
+    public List<NotificationSummary> getNotifications(@RequestParam(defaultValue = "100") int limit,
+                                                      @RequestParam(required = false) Long before) {
+        int capped = Math.max(1, Math.min(limit, 1000));
+        if (before == null) {
+            return store.getRecent(capped);
+        }
+        return store.getBefore(before, capped);
     }
 
     @GetMapping("/media/{fileId}")
