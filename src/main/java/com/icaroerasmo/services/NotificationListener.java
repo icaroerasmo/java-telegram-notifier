@@ -169,7 +169,7 @@ public class NotificationListener {
             }
             Object[] args = message.args() != null ? message.args().toArray() : new Object[0];
             try {
-                body = escapeHtml(MessageFormat.format(pattern, args));
+                body = MessageFormat.format(pattern, args);
             } catch (Exception e) {
                 throw new AmqpRejectAndDontRequeueException("Failed to format template: " + message.template(), e);
             }
@@ -294,7 +294,7 @@ public class NotificationListener {
     private SendResponse execute(NotificationMessage message, String text, String chatId) {
         return switch (message.mediaType()) {
             case TEXT -> telegramBot.execute(
-                    new SendMessage(chatId, truncate(text, TEXT_MAX_LENGTH)).parseMode(ParseMode.HTML));
+                    new SendMessage(chatId, truncate(escapeHtml(text), TEXT_MAX_LENGTH)).parseMode(ParseMode.HTML));
             case PHOTO -> telegramBot.execute(
                     new SendPhoto(chatId, message.payload())
                             .caption(truncate(text, CAPTION_MAX_LENGTH))
@@ -306,7 +306,7 @@ public class NotificationListener {
             case DOCUMENT -> telegramBot.execute(
                     new SendDocument(chatId, message.payload())
                             .fileName(message.filename())
-                            .caption(truncate(text, CAPTION_MAX_LENGTH))
+                            .caption(truncate(escapeHtml(text), CAPTION_MAX_LENGTH))
                             .parseMode(ParseMode.HTML));
         };
     }
