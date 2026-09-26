@@ -17,7 +17,7 @@ class NotificationStoreTest {
 
     private NotificationSummary summary(long ts, String id) {
         return new NotificationSummary(id, "recorder", "DOCUMENT", "log", "summary " + id,
-                "file" + id, "log.txt", null, ts, "2026-09-25", "10");
+                "file" + id, "log.txt", null, ts, "2026-09-25", "10", 1024);
     }
 
     @Test
