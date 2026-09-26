@@ -11,5 +11,6 @@ public record NotificationSummary(
         String sentAt,
         long timestamp,
         String date,
-        String hour) {
+        String hour,
+        long size) {
 }

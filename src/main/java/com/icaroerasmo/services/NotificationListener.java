@@ -72,6 +72,7 @@ public class NotificationListener {
         String fileId = extractFileId(message, response);
         String summary = buildSummary(message, text);
         long ts = parseTimestamp(message.sentAt());
+        long size = message.payload() != null ? message.payload().length : 0;
         NotificationSummary notificationSummary = new NotificationSummary(
                 message.messageId(),
                 message.sender(),
@@ -83,7 +84,8 @@ public class NotificationListener {
                 message.sentAt(),
                 ts,
                 formatDate(ts),
-                formatHour(ts));
+                formatHour(ts),
+                size);
 
         notificationStore.append(notificationSummary);
         summaryPublisher.publish(notificationSummary);
