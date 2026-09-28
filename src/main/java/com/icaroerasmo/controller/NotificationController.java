@@ -1,6 +1,7 @@
 package com.icaroerasmo.controller;
 
 import com.icaroerasmo.messaging.NotificationPage;
+import com.icaroerasmo.messaging.NotificationSummary;
 import com.icaroerasmo.services.NotificationSearchService;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.request.GetFile;
@@ -11,12 +12,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -40,7 +43,7 @@ public class NotificationController {
      * Notification history with filters. {@code type=notifications|logs} selects
      * which set is returned (notifications returns ALL including DOCUMENT; logs
      * returns only DOCUMENT). {@code text=} switches to full-text search over log
-     * captions. {@code kind}/{@code date}/{@code hour} filter logs. Pagination is
+     * content. {@code kind}/{@code date}/{@code hour} filter logs. Pagination is
      * cursor-based (opaque) via search_after.
      */
     @GetMapping("/notifications")
@@ -62,6 +65,69 @@ public class NotificationController {
     @GetMapping("/notifications/kinds")
     public List<String> getKinds() {
         return searchService.distinctKinds();
+    }
+
+    /**
+     * Backfills the log content for every DOCUMENT notification whose content is
+     * not already indexed, fetching each file from Telegram. Runs async and is
+     * idempotent (skips already-indexed content, so it can be re-run).
+     */
+    @PostMapping("/notifications/backfill")
+    public ResponseEntity<Map<String, Object>> backfill() {
+        Thread thread = new Thread(this::runBackfill, "log-backfill");
+        thread.setDaemon(true);
+        thread.start();
+        return ResponseEntity.accepted().body(Map.of("status", "started"));
+    }
+
+    private void runBackfill() {
+        String cursor = null;
+        int processed = 0;
+        int indexed = 0;
+        while (true) {
+            NotificationPage page;
+            try {
+                page = searchService.list(true, null, null, null, cursor, 200);
+            } catch (Exception e) {
+                log.error("Backfill failed to fetch page: {}", e.getMessage());
+                break;
+            }
+            if (page.items().isEmpty()) {
+                break;
+            }
+            for (NotificationSummary s : page.items()) {
+                processed++;
+                if (s.fileId() == null || s.fileId().isBlank()) {
+                    continue;
+                }
+                try {
+                    if (searchService.hasLogContent(s.id())) {
+                        continue;
+                    }
+                    GetFileResponse response = telegramBot.execute(new GetFile(s.fileId()));
+                    if (response.isOk() && response.file() != null) {
+                        byte[] bytes = telegramBot.getFileContent(response.file());
+                        searchService.reindexLogContent(s, new String(bytes, StandardCharsets.UTF_8));
+                        indexed++;
+                    }
+                } catch (Exception e) {
+                    log.warn("Backfill failed for {} (fileId={}): {}", s.id(), s.fileId(), e.getMessage());
+                }
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.info("Backfill interrupted: processed={} indexed={}", processed, indexed);
+                    return;
+                }
+            }
+            log.info("Backfill progress: processed={} indexed={}", processed, indexed);
+            if (!page.hasMore() || page.nextCursor() == null) {
+                break;
+            }
+            cursor = page.nextCursor();
+        }
+        log.info("Backfill complete: processed={} indexed={}", processed, indexed);
     }
 
     @GetMapping("/media/{fileId}")
