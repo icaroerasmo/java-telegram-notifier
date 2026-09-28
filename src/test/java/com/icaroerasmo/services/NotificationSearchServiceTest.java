@@ -124,17 +124,17 @@ class NotificationSearchServiceTest {
 
     @Test
     void searchLogs_mapsHitsAndReturnsCursor() {
-        NotificationDocument doc = NotificationDocument.builder()
+        LogDocument doc = LogDocument.builder()
                 .id("n1").sender("recorder").mediaType("DOCUMENT").kind("T")
                 .summary("s").fileId("f").filename("log.txt").sentAt(null)
                 .timestamp(1000L).date("2026-09-28").hour("10").size(1)
-                .storageRef(null).build();
-        SearchHit<NotificationDocument> hit = mock(SearchHit.class);
+                .logContent("sincronizacao finalizada").contentStoredAt(1000L).build();
+        SearchHit<LogDocument> hit = mock(SearchHit.class);
         when(hit.getContent()).thenReturn(doc);
         when(hit.getSortValues()).thenReturn(List.of(1000L, "n1"));
-        SearchHits<NotificationDocument> hits = mock(SearchHits.class);
+        SearchHits<LogDocument> hits = mock(SearchHits.class);
         when(hits.getSearchHits()).thenReturn(List.of(hit));
-        doReturn(hits).when(operations).search(any(Query.class), eq(NotificationDocument.class));
+        doReturn(hits).when(operations).search(any(Query.class), eq(LogDocument.class));
 
         NotificationPage page = service.searchLogs("sincronizacao", "T", null, null, null, 100);
 

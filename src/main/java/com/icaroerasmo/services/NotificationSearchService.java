@@ -209,16 +209,15 @@ public class NotificationSearchService {
         return page(builder, cursor, limit, NotificationDocument.class, this::toSummaryDoc);
     }
 
-    /** Full-text search over log captions (covers all logs) with optional filters. */
+    /** Full-text search over log content with optional filters. */
     public NotificationPage searchLogs(String text, String kind, String date, String hour, String cursor, int limit) {
         NativeQueryBuilder builder = NativeQuery.builder();
         builder.withQuery(q -> q.bool(b -> {
-            b.must(m -> m.term(t -> t.field("mediaType").value("DOCUMENT")));
-            b.must(m -> m.match(mm -> mm.field("summary").query(text)));
+            b.must(m -> m.match(mm -> mm.field("logContent").query(text)));
             applyFilters(b, kind, date, hour);
             return b;
         }));
-        return page(builder, cursor, limit, NotificationDocument.class, this::toSummaryDoc);
+        return page(builder, cursor, limit, LogDocument.class, this::toSummaryLog);
     }
 
     private void applyFilters(BoolQuery.Builder b, String kind, String date, String hour) {
@@ -365,6 +364,12 @@ public class NotificationSearchService {
     }
 
     private NotificationSummary toSummaryDoc(NotificationDocument d) {
+        return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
+                d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
+                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize());
+    }
+
+    private NotificationSummary toSummaryLog(LogDocument d) {
         return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
                 d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
                 d.getTimestamp(), d.getDate(), d.getHour(), d.getSize());
