@@ -13,6 +13,8 @@ rabbitMq:
   publisher-returns: true
 spring:
   elasticsearch:
-    uris: '${ELASTICSEARCH_URI:http://elasticsearch:9200}'
+    uris: '${ELASTICSEARCH_URL:http://elasticsearch:9200}'
     connection-timeout: 5s
     socket-timeout: 30s
+elasticsearch:
+  log-ttl-days: '${ELASTICSEARCH_LOG_TTL_DAYS:10}'

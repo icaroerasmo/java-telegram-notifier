@@ -8,6 +8,7 @@ import com.icaroerasmo.messaging.NotificationDocument;
 import com.icaroerasmo.messaging.NotificationPage;
 import com.icaroerasmo.messaging.NotificationSummary;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
@@ -45,15 +46,17 @@ import java.util.function.Function;
 public class NotificationSearchService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final long LOG_TTL_DAYS = 10;
     private static final int MAX_LOG_CONTENT_BYTES = 1_000_000; // 1 MB cap
 
     private final ElasticsearchOperations operations;
     private final ElasticsearchClient client;
+    private final long logTtlDays;
 
-    public NotificationSearchService(ElasticsearchOperations operations, ElasticsearchClient client) {
+    public NotificationSearchService(ElasticsearchOperations operations, ElasticsearchClient client,
+                                     @Value("${elasticsearch.log-ttl-days:10}") long logTtlDays) {
         this.operations = operations;
         this.client = client;
+        this.logTtlDays = logTtlDays;
     }
 
     // ------------------------------------------------------------------
@@ -305,7 +308,7 @@ public class NotificationSearchService {
 
     @Scheduled(fixedDelay = 3_600_000, initialDelay = 60_000)
     public void deleteExpiredLogs() {
-        long cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(LOG_TTL_DAYS);
+        long cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(logTtlDays);
         Query query = NativeQuery.builder()
                 .withQuery(q -> q.range(r -> r.field("contentStoredAt").lt(co.elastic.clients.json.JsonData.of(cutoff))))
                 .build();

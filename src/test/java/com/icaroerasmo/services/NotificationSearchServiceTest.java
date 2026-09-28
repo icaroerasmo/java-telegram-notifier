@@ -44,7 +44,7 @@ class NotificationSearchServiceTest {
     void setUp() {
         operations = mock(ElasticsearchOperations.class);
         client = mock(ElasticsearchClient.class);
-        service = new NotificationSearchService(operations, client);
+        service = new NotificationSearchService(operations, client, 10);
     }
 
     private NotificationSummary summary(String id, String mediaType) {
