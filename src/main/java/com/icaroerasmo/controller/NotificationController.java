@@ -1,7 +1,7 @@
 package com.icaroerasmo.controller;
 
-import com.icaroerasmo.messaging.NotificationSummary;
-import com.icaroerasmo.services.NotificationStore;
+import com.icaroerasmo.messaging.NotificationPage;
+import com.icaroerasmo.services.NotificationSearchService;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.request.GetFile;
 import com.pengrad.telegrambot.response.GetFileResponse;
@@ -15,33 +15,41 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Serves the notification history and proxies media stored on Telegram.
- * The bot token never leaves this service.
+ * Serves the notification history (from Elasticsearch) and proxies media stored
+ * on Telegram. The bot token never leaves this service.
  */
 @Log4j2
 @RestController
 @RequestMapping("/api")
 public class NotificationController {
 
-    private final NotificationStore store;
+    private final NotificationSearchService searchService;
     private final TelegramBot telegramBot;
 
-    public NotificationController(NotificationStore store, TelegramBot telegramBot) {
-        this.store = store;
+    public NotificationController(NotificationSearchService searchService, TelegramBot telegramBot) {
+        this.searchService = searchService;
         this.telegramBot = telegramBot;
     }
 
+    /**
+     * Notification history with filters. {@code type=notifications|logs} selects
+     * which set is returned; {@code text=} switches to full-text search over log
+     * content. Pagination is cursor-based (opaque) via search_after.
+     */
     @GetMapping("/notifications")
-    public List<NotificationSummary> getNotifications(@RequestParam(defaultValue = "100") int limit,
-                                                      @RequestParam(required = false) Long before) {
+    public NotificationPage getNotifications(@RequestParam(defaultValue = "notifications") String type,
+                                             @RequestParam(defaultValue = "100") int limit,
+                                             @RequestParam(required = false) String cursor,
+                                             @RequestParam(required = false) String text) {
         int capped = Math.max(1, Math.min(limit, 1000));
-        if (before == null) {
-            return store.getRecent(capped);
+        if (text != null && !text.isBlank()) {
+            return searchService.searchLogs(text, cursor, capped);
         }
-        return store.getBefore(before, capped);
+        return searchService.list("logs".equalsIgnoreCase(type), cursor, capped);
     }
 
     @GetMapping("/media/{fileId}")
@@ -49,13 +57,11 @@ public class NotificationController {
                                            @RequestParam(value = "filename", required = false) String filename) {
         try {
             GetFileResponse response = telegramBot.execute(new GetFile(fileId));
-            log.warn("[getMedia] fileId={} isOk={} errorCode={} description={} filePath={}",
-                    fileId, response.isOk(), response.errorCode(), response.description(),
-                    response.file() != null ? response.file().filePath() : "null");
             if (!response.isOk() || response.file() == null) {
                 return ResponseEntity.notFound().build();
             }
             byte[] bytes = telegramBot.getFileContent(response.file());
+            triggerLogReindex(fileId, bytes);
             ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, inferMediaType(response.file().filePath()).toString())
                     .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600");
@@ -68,6 +74,22 @@ public class NotificationController {
             log.warn("Failed to fetch media fileId={}: {}", fileId, e.getMessage());
             return ResponseEntity.status(500).build();
         }
+    }
+
+    /**
+     * Lazy reload: when a DOCUMENT (log) is viewed, re-index its content so it
+     * becomes text-searchable again even after it expired from the "logs" index.
+     * Runs async so the view response is not blocked.
+     */
+    private void triggerLogReindex(String fileId, byte[] bytes) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                searchService.findLogByFileId(fileId).ifPresent(summary ->
+                        searchService.reindexLogContent(summary, new String(bytes, StandardCharsets.UTF_8)));
+            } catch (Exception e) {
+                log.warn("Failed to reindex log content for fileId={}: {}", fileId, e.getMessage());
+            }
+        });
     }
 
     private MediaType inferMediaType(String filePath) {

@@ -43,7 +43,7 @@ public class NotificationListener {
     private final TelegramBot telegramBot;
     private final TranslationService translationService;
     private final TelegramProperties properties;
-    private final NotificationStore notificationStore;
+    private final NotificationSearchService searchService;
     private final NotificationSummaryPublisher summaryPublisher;
     private final AtomicLong lastSentAt = new AtomicLong(0);
     private final Object sendLock = new Object();
@@ -51,12 +51,12 @@ public class NotificationListener {
     public NotificationListener(TelegramBot telegramBot,
                                 TranslationService translationService,
                                 TelegramProperties properties,
-                                NotificationStore notificationStore,
+                                NotificationSearchService searchService,
                                 NotificationSummaryPublisher summaryPublisher) {
         this.telegramBot = telegramBot;
         this.translationService = translationService;
         this.properties = properties;
-        this.notificationStore = notificationStore;
+        this.searchService = searchService;
         this.summaryPublisher = summaryPublisher;
     }
 
@@ -87,7 +87,8 @@ public class NotificationListener {
                 formatHour(ts),
                 size);
 
-        notificationStore.append(notificationSummary);
+        searchService.index(notificationSummary);
+        searchService.indexLog(notificationSummary, message.payload());
         summaryPublisher.publish(notificationSummary);
     }
 

@@ -11,3 +11,8 @@ rabbitMq:
   password: '${RABBITMQ_PASSWORD:guest}'
   publisher-confirm-type: correlated
   publisher-returns: true
+spring:
+  elasticsearch:
+    uris: '${ELASTICSEARCH_URI:http://elasticsearch:9200}'
+    connection-timeout: 5s
+    socket-timeout: 30s
