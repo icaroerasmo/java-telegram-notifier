@@ -166,6 +166,14 @@ public class NotificationSearchService {
         saveLog(summary, content);
     }
 
+    /** Returns true if the log content for the given id is already indexed. */
+    public boolean hasLogContent(String id) {
+        if (id == null || id.isBlank()) {
+            return false;
+        }
+        return operations.get(id, LogDocument.class) != null;
+    }
+
     private void saveLog(NotificationSummary s, String content) {
         String safe = content == null ? "" : content;
         if (safe.length() > MAX_LOG_CONTENT_BYTES) {
