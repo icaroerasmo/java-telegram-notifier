@@ -1,5 +1,6 @@
 package com.icaroerasmo.services;
 
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.icaroerasmo.messaging.LogDocument;
 import com.icaroerasmo.messaging.NotificationDocument;
@@ -189,22 +190,44 @@ public class NotificationSearchService {
     // Read (list + full-text search)
     // ------------------------------------------------------------------
 
-    /** Lists notifications. {@code logsOnly} selects DOCUMENT rows (the "has logs" filter). */
-    public NotificationPage list(boolean logsOnly, String cursor, int limit) {
+    /**
+     * Lists notifications. {@code logsOnly} selects DOCUMENT rows only (the "has
+     * logs" filter); otherwise all notifications are returned (including DOCUMENT).
+     */
+    public NotificationPage list(boolean logsOnly, String kind, String date, String hour, String cursor, int limit) {
         NativeQueryBuilder builder = NativeQuery.builder();
         if (logsOnly) {
-            builder.withQuery(q -> q.term(t -> t.field("mediaType").value("DOCUMENT")));
-        } else {
-            builder.withQuery(q -> q.bool(b -> b.mustNot(mn -> mn.term(t -> t.field("mediaType").value("DOCUMENT")))));
+            builder.withQuery(q -> q.bool(b -> {
+                b.must(m -> m.term(t -> t.field("mediaType").value("DOCUMENT")));
+                applyFilters(b, kind, date, hour);
+                return b;
+            }));
         }
         return page(builder, cursor, limit, NotificationDocument.class, this::toSummaryDoc);
     }
 
-    /** Full-text search over log content. */
-    public NotificationPage searchLogs(String text, String cursor, int limit) {
-        NativeQueryBuilder builder = NativeQuery.builder()
-                .withQuery(q -> q.match(m -> m.field("logContent").query(text)));
-        return page(builder, cursor, limit, LogDocument.class, this::toSummaryLog);
+    /** Full-text search over log captions (covers all logs) with optional filters. */
+    public NotificationPage searchLogs(String text, String kind, String date, String hour, String cursor, int limit) {
+        NativeQueryBuilder builder = NativeQuery.builder();
+        builder.withQuery(q -> q.bool(b -> {
+            b.must(m -> m.term(t -> t.field("mediaType").value("DOCUMENT")));
+            b.must(m -> m.match(mm -> mm.field("summary").query(text)));
+            applyFilters(b, kind, date, hour);
+            return b;
+        }));
+        return page(builder, cursor, limit, NotificationDocument.class, this::toSummaryDoc);
+    }
+
+    private void applyFilters(BoolQuery.Builder b, String kind, String date, String hour) {
+        if (kind != null && !kind.isBlank()) {
+            b.filter(f -> f.term(t -> t.field("kind").value(kind)));
+        }
+        if (date != null && !date.isBlank()) {
+            b.filter(f -> f.term(t -> t.field("date").value(date)));
+        }
+        if (hour != null && !hour.isBlank()) {
+            b.filter(f -> f.term(t -> t.field("hour").value(hour)));
+        }
     }
 
     /** Finds a DOCUMENT notification by its Telegram fileId (1:1 for logs). */
@@ -316,12 +339,6 @@ public class NotificationSearchService {
     }
 
     private NotificationSummary toSummaryDoc(NotificationDocument d) {
-        return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
-                d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
-                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize());
-    }
-
-    private NotificationSummary toSummaryLog(LogDocument d) {
         return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
                 d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
                 d.getTimestamp(), d.getDate(), d.getHour(), d.getSize());
