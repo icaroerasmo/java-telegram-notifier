@@ -1,5 +1,6 @@
 package com.icaroerasmo.services;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.icaroerasmo.messaging.LogDocument;
@@ -48,9 +49,11 @@ public class NotificationSearchService {
     private static final int MAX_LOG_CONTENT_BYTES = 1_000_000; // 1 MB cap
 
     private final ElasticsearchOperations operations;
+    private final ElasticsearchClient client;
 
-    public NotificationSearchService(ElasticsearchOperations operations) {
+    public NotificationSearchService(ElasticsearchOperations operations, ElasticsearchClient client) {
         this.operations = operations;
+        this.client = client;
     }
 
     // ------------------------------------------------------------------
@@ -227,6 +230,29 @@ public class NotificationSearchService {
         }
         if (hour != null && !hour.isBlank()) {
             b.filter(f -> f.term(t -> t.field("hour").value(hour)));
+        }
+    }
+
+    /** Returns all distinct log kinds (template names) for DOCUMENT notifications. */
+    public List<String> distinctKinds() {
+        try {
+            var response = client.search(s -> s
+                    .index("notifications")
+                    .size(0)
+                    .query(q -> q.term(t -> t.field("mediaType").value("DOCUMENT")))
+                    .aggregations("kinds", a -> a.terms(t -> t.field("kind").size(1000))),
+                    NotificationDocument.class);
+            var terms = response.aggregations().get("kinds");
+            if (terms != null && terms.isSterms()) {
+                return terms.sterms().buckets().array().stream()
+                        .map(b -> b.key().stringValue())
+                        .sorted()
+                        .toList();
+            }
+            return List.of();
+        } catch (Exception e) {
+            log.warn("Failed to fetch distinct kinds: {}", e.getMessage());
+            return List.of();
         }
     }
 
