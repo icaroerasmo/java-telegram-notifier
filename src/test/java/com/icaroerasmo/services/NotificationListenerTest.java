@@ -37,7 +37,7 @@ class NotificationListenerTest {
                 telegramBot,
                 new TranslationService(messageSource, "pt-BR"),
                 properties,
-                mock(NotificationStore.class),
+                mock(NotificationSearchService.class),
                 mock(NotificationSummaryPublisher.class));
     }
 

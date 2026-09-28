@@ -12,3 +12,5 @@ target/
 .project
 .settings/
 *.versionsBackup
+
+.slim/deepwork/
