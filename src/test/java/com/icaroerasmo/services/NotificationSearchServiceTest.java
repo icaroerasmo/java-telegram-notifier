@@ -1,6 +1,7 @@
 package com.icaroerasmo.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.icaroerasmo.messaging.LogDocument;
 import com.icaroerasmo.messaging.NotificationDocument;
 import com.icaroerasmo.messaging.NotificationPage;
@@ -36,12 +37,14 @@ import static org.mockito.Mockito.when;
 class NotificationSearchServiceTest {
 
     private ElasticsearchOperations operations;
+    private ElasticsearchClient client;
     private NotificationSearchService service;
 
     @BeforeEach
     void setUp() {
         operations = mock(ElasticsearchOperations.class);
-        service = new NotificationSearchService(operations);
+        client = mock(ElasticsearchClient.class);
+        service = new NotificationSearchService(operations, client);
     }
 
     private NotificationSummary summary(String id, String mediaType) {

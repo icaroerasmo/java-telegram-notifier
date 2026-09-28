@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -55,6 +56,12 @@ public class NotificationController {
             return searchService.searchLogs(text, kind, date, hour, cursor, capped);
         }
         return searchService.list("logs".equalsIgnoreCase(type), kind, date, hour, cursor, capped);
+    }
+
+    /** Returns all distinct log kinds (template names) for the logs tab. */
+    @GetMapping("/notifications/kinds")
+    public List<String> getKinds() {
+        return searchService.distinctKinds();
     }
 
     @GetMapping("/media/{fileId}")
