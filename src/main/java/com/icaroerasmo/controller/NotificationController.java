@@ -37,19 +37,24 @@ public class NotificationController {
 
     /**
      * Notification history with filters. {@code type=notifications|logs} selects
-     * which set is returned; {@code text=} switches to full-text search over log
-     * content. Pagination is cursor-based (opaque) via search_after.
+     * which set is returned (notifications returns ALL including DOCUMENT; logs
+     * returns only DOCUMENT). {@code text=} switches to full-text search over log
+     * captions. {@code kind}/{@code date}/{@code hour} filter logs. Pagination is
+     * cursor-based (opaque) via search_after.
      */
     @GetMapping("/notifications")
     public NotificationPage getNotifications(@RequestParam(defaultValue = "notifications") String type,
                                              @RequestParam(defaultValue = "100") int limit,
                                              @RequestParam(required = false) String cursor,
-                                             @RequestParam(required = false) String text) {
+                                             @RequestParam(required = false) String text,
+                                             @RequestParam(required = false) String kind,
+                                             @RequestParam(required = false) String date,
+                                             @RequestParam(required = false) String hour) {
         int capped = Math.max(1, Math.min(limit, 1000));
         if (text != null && !text.isBlank()) {
-            return searchService.searchLogs(text, cursor, capped);
+            return searchService.searchLogs(text, kind, date, hour, cursor, capped);
         }
-        return searchService.list("logs".equalsIgnoreCase(type), cursor, capped);
+        return searchService.list("logs".equalsIgnoreCase(type), kind, date, hour, cursor, capped);
     }
 
     @GetMapping("/media/{fileId}")

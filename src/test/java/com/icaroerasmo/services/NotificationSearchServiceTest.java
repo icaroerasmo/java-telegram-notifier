@@ -112,7 +112,28 @@ class NotificationSearchServiceTest {
         when(hits.getSearchHits()).thenReturn(List.of(hit));
         doReturn(hits).when(operations).search(any(Query.class), eq(NotificationDocument.class));
 
-        NotificationPage page = service.list(false, null, 100);
+        NotificationPage page = service.list(false, null, null, null, null, 100);
+
+        assertEquals(1, page.items().size());
+        assertEquals("n1", page.items().get(0).id());
+        assertNotNull(page.nextCursor());
+    }
+
+    @Test
+    void searchLogs_mapsHitsAndReturnsCursor() {
+        NotificationDocument doc = NotificationDocument.builder()
+                .id("n1").sender("recorder").mediaType("DOCUMENT").kind("T")
+                .summary("s").fileId("f").filename("log.txt").sentAt(null)
+                .timestamp(1000L).date("2026-09-28").hour("10").size(1)
+                .storageRef(null).build();
+        SearchHit<NotificationDocument> hit = mock(SearchHit.class);
+        when(hit.getContent()).thenReturn(doc);
+        when(hit.getSortValues()).thenReturn(List.of(1000L, "n1"));
+        SearchHits<NotificationDocument> hits = mock(SearchHits.class);
+        when(hits.getSearchHits()).thenReturn(List.of(hit));
+        doReturn(hits).when(operations).search(any(Query.class), eq(NotificationDocument.class));
+
+        NotificationPage page = service.searchLogs("sincronizacao", "T", null, null, null, 100);
 
         assertEquals(1, page.items().size());
         assertEquals("n1", page.items().get(0).id());
