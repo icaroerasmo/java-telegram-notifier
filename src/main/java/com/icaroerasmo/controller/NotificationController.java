@@ -67,6 +67,14 @@ public class NotificationController {
         return searchService.distinctKinds();
     }
 
+    /** Returns a single notification by id (404 when absent). */
+    @GetMapping("/notifications/{id}")
+    public ResponseEntity<NotificationSummary> getNotification(@PathVariable String id) {
+        return searchService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     /**
      * Backfills the log content for every DOCUMENT notification whose content is
      * not already indexed, fetching each file from Telegram. Runs async and is

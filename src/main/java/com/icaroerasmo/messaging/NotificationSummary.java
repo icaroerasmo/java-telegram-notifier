@@ -1,5 +1,7 @@
 package com.icaroerasmo.messaging;
 
+import java.util.List;
+
 public record NotificationSummary(
         String id,
         String sender,
@@ -12,5 +14,6 @@ public record NotificationSummary(
         long timestamp,
         String date,
         String hour,
-        long size) {
+        long size,
+        List<String> personNames) {
 }

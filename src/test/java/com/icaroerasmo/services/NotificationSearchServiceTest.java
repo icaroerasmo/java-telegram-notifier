@@ -49,7 +49,7 @@ class NotificationSearchServiceTest {
 
     private NotificationSummary summary(String id, String mediaType) {
         return new NotificationSummary(id, "recorder", mediaType, "TEMPLATE", "summary " + id,
-                "file" + id, "log.txt", null, 1000L, "2026-09-28", "10", 1024);
+                "file" + id, "log.txt", null, 1000L, "2026-09-28", "10", 1024, List.of());
     }
 
     @Test

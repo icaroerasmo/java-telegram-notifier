@@ -63,6 +63,10 @@ public class NotificationDocument {
     @Field(type = FieldType.Long)
     private long size;
 
+    /** Identified person names for PHOTO/ANIMATION detections (empty for others). */
+    @Field(type = FieldType.Keyword)
+    private java.util.List<String> personNames;
+
     /** Reserved for a future local media store (null while Telegram fileId is the source). */
     @Field(type = FieldType.Keyword)
     private String storageRef;
