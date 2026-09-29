@@ -85,7 +85,8 @@ public class NotificationListener {
                 ts,
                 formatDate(ts),
                 formatHour(ts),
-                size);
+                size,
+                buildPersonNames(message.caption()));
 
         searchService.index(notificationSummary);
         searchService.indexLog(notificationSummary, message.payload());
@@ -387,6 +388,17 @@ public class NotificationListener {
             return "👤 Detecção · " + cam;
         }
         return "👤 Detecção · " + cam + " · " + known + " conhecidos, " + unknown + " desconhecidos";
+    }
+
+    private List<String> buildPersonNames(NotificationMessage.CaptionSpec c) {
+        if (c == null || c.detectedPeople() == null) {
+            return List.of();
+        }
+        return c.detectedPeople().entrySet().stream()
+                .filter(e -> !"Unknown".equalsIgnoreCase(e.getKey()))
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
     }
 
     private String buildGifSummary(NotificationMessage.CaptionSpec c) {

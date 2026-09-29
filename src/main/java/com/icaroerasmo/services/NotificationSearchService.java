@@ -177,6 +177,15 @@ public class NotificationSearchService {
         return operations.get(id, LogDocument.class) != null;
     }
 
+    /** Returns a single notification by its id (empty when absent). */
+    public Optional<NotificationSummary> findById(String id) {
+        if (id == null || id.isBlank()) {
+            return Optional.empty();
+        }
+        NotificationDocument doc = operations.get(id, NotificationDocument.class);
+        return doc != null ? Optional.of(toSummaryDoc(doc)) : Optional.empty();
+    }
+
     private void saveLog(NotificationSummary s, String content) {
         String safe = content == null ? "" : content;
         if (safe.length() > MAX_LOG_CONTENT_BYTES) {
@@ -370,6 +379,7 @@ public class NotificationSearchService {
                 .date(s.date())
                 .hour(s.hour())
                 .size(s.size())
+                .personNames(s.personNames())
                 .storageRef(null)
                 .build();
     }
@@ -377,13 +387,13 @@ public class NotificationSearchService {
     private NotificationSummary toSummaryDoc(NotificationDocument d) {
         return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
                 d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
-                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize());
+                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize(), d.getPersonNames());
     }
 
     private NotificationSummary toSummaryLog(LogDocument d) {
         return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
                 d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
-                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize());
+                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize(), List.of());
     }
 
     private String decode(byte[] payload) {
