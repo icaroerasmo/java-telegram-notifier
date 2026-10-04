@@ -453,12 +453,15 @@ public class NotificationListener {
         if (template.contains("ERROR")) {
             return true;
         }
-        // Do NOT send browser notifications for sync/dedupe/delete/rmdirs/exclusion START/SUCCESS events
-        if (template.contains("SYNC_START") || template.contains("SYNC_SUCCESS")
-                || template.contains("DEDUPE_START") || template.contains("DEDUPE_SUCCESS")
-                || template.contains("DELETE_START") || template.contains("DELETE_SUCCESS")
-                || template.contains("RMDIRS_START") || template.contains("RMDIRS_SUCCESS")
-                || template.contains("EXCLUSION")) {
+        // Rclone operations (sync/dedupe/delete/rmdirs) - only errors go to browser
+        if (template.startsWith("RCLONE_SYNC")
+                || template.startsWith("RCLONE_DEDUPE")
+                || template.startsWith("RCLONE_DELETE")
+                || template.startsWith("RCLONE_RMDIRS")) {
+            return false;
+        }
+        // Exclusion operations
+        if (template.contains("EXCLUSION")) {
             return false;
         }
         return true;
