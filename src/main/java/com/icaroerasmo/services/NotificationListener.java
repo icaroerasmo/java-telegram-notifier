@@ -449,15 +449,15 @@ public class NotificationListener {
                 return true;
             }
         }
-        // Failures (ERROR) MUST send browser notifications
-        if (template.contains("ERROR")) {
+        // Explicit rclone error templates that MUST send browser notifications
+        if (template.equals("RCLONE_SYNC_ERROR")
+                || template.equals("RCLONE_DEDUPE_ERROR")
+                || template.equals("RCLONE_DELETE_ERROR")
+                || template.equals("RCLONE_RMDIRS_ERROR")) {
             return true;
         }
-        // Rclone operations (sync/dedupe/delete/rmdirs) - only errors go to browser
-        if (template.startsWith("RCLONE_SYNC")
-                || template.startsWith("RCLONE_DEDUPE")
-                || template.startsWith("RCLONE_DELETE")
-                || template.startsWith("RCLONE_RMDIRS")) {
+        // All other rclone operations (START, SUCCESS, NO_LOGS, etc.) must NOT send browser notifications
+        if (template.startsWith("RCLONE_")) {
             return false;
         }
         // Exclusion operations
