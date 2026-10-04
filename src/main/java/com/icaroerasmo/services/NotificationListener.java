@@ -454,8 +454,11 @@ public class NotificationListener {
             return true;
         }
         // Do NOT send browser notifications for sync/dedupe/delete/rmdirs/exclusion START/SUCCESS events
-        if (template.contains("SYNC") || template.contains("DEDUPE") || template.contains("DELETE")
-                || template.contains("RMDIRS") || template.contains("EXCLUSION")) {
+        if (template.contains("SYNC_START") || template.contains("SYNC_SUCCESS")
+                || template.contains("DEDUPE_START") || template.contains("DEDUPE_SUCCESS")
+                || template.contains("DELETE_START") || template.contains("DELETE_SUCCESS")
+                || template.contains("RMDIRS_START") || template.contains("RMDIRS_SUCCESS")
+                || template.contains("EXCLUSION")) {
             return false;
         }
         return true;
