@@ -15,5 +15,6 @@ public record NotificationSummary(
         String date,
         String hour,
         long size,
-        List<String> personNames) {
+        List<String> personNames,
+        boolean browserNotify) {
 }

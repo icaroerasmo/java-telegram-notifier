@@ -73,6 +73,8 @@ public class NotificationListener {
         String summary = buildSummary(message, text);
         long ts = parseTimestamp(message.sentAt());
         long size = message.payload() != null ? message.payload().length : 0;
+        List<String> personNames = buildPersonNames(message.caption());
+        boolean browserNotify = shouldBrowserNotify(message, personNames);
         NotificationSummary notificationSummary = new NotificationSummary(
                 message.messageId(),
                 message.sender(),
@@ -86,7 +88,8 @@ public class NotificationListener {
                 formatDate(ts),
                 formatHour(ts),
                 size,
-                buildPersonNames(message.caption()));
+                personNames,
+                browserNotify);
 
         searchService.index(notificationSummary);
         searchService.indexLog(notificationSummary, message.payload());
@@ -433,4 +436,29 @@ public class NotificationListener {
         return Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalTime()
                 .format(DateTimeFormatter.ofPattern("HH"));
     }
+
+    private boolean shouldBrowserNotify(NotificationMessage message, List<String> personNames) {
+        if (message == null || message.template() == null) {
+            return true;
+        }
+        String template = message.template();
+        // Notifications of people being seen by the cameras must be kept
+        if (message.mediaType() == NotificationMessage.MediaType.PHOTO
+                || message.mediaType() == NotificationMessage.MediaType.ANIMATION) {
+            if (!personNames.isEmpty()) {
+                return true;
+            }
+        }
+        // If dedupe, sync or exclusion of files and folders fail, send notification to browser
+        if (template.contains("ERROR")) {
+            return true;
+        }
+        // notifications of sync, dedupe and exclusions started of finished successfuly must be not sent to browser
+        if (template.contains("SYNC") || template.contains("DEDUPE") || template.contains("DELETE")
+                || template.contains("RMDIRS") || template.contains("EXCLUSION")) {
+            return false;
+        }
+        return true;
+    }
+
 }
