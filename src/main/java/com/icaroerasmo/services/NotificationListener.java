@@ -441,19 +441,19 @@ public class NotificationListener {
         if (message == null || message.template() == null) {
             return true;
         }
-        String template = message.template();
-        // Notifications of people being seen by the cameras must be kept
+        String template = message.template().toUpperCase();
+        // Camera person-detection alerts (PHOTO/ANIMATION with detected people) MUST send browser notifications
         if (message.mediaType() == NotificationMessage.MediaType.PHOTO
                 || message.mediaType() == NotificationMessage.MediaType.ANIMATION) {
-            if (!personNames.isEmpty()) {
+            if (personNames != null && !personNames.isEmpty()) {
                 return true;
             }
         }
-        // If dedupe, sync or exclusion of files and folders fail, send notification to browser
+        // Failures (ERROR) MUST send browser notifications
         if (template.contains("ERROR")) {
             return true;
         }
-        // notifications of sync, dedupe and exclusions started of finished successfuly must be not sent to browser
+        // Do NOT send browser notifications for sync/dedupe/delete/rmdirs/exclusion START/SUCCESS events
         if (template.contains("SYNC") || template.contains("DEDUPE") || template.contains("DELETE")
                 || template.contains("RMDIRS") || template.contains("EXCLUSION")) {
             return false;
