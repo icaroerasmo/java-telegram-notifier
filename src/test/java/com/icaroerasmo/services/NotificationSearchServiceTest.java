@@ -2,6 +2,7 @@ package com.icaroerasmo.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.json.JsonpUtils;
 import com.icaroerasmo.messaging.LogDocument;
 import com.icaroerasmo.messaging.NotificationDocument;
 import com.icaroerasmo.messaging.NotificationPage;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
@@ -49,7 +51,7 @@ class NotificationSearchServiceTest {
 
     private NotificationSummary summary(String id, String mediaType) {
         return new NotificationSummary(id, "recorder", mediaType, "TEMPLATE", "summary " + id,
-                "file" + id, "log.txt", null, 1000L, "2026-09-28", "10", 1024, List.of());
+                "file" + id, "log.txt", null, 1000L, "2026-09-28", "10", 1024, List.of(), false);
     }
 
     @Test
@@ -141,5 +143,33 @@ class NotificationSearchServiceTest {
         assertEquals(1, page.items().size());
         assertEquals("n1", page.items().get(0).id());
         assertNotNull(page.nextCursor());
+    }
+
+    @Test
+    void list_appliesDateAndHourFiltersForNotificationsTab() {
+        NotificationDocument doc = NotificationDocument.builder()
+                .id("n1").sender("recorder").mediaType("TEXT").kind("T")
+                .summary("s").fileId("f").filename(null).sentAt(null)
+                .timestamp(1000L).date("2026-09-28").hour("10").size(1)
+                .storageRef(null).build();
+        SearchHit<NotificationDocument> hit = mock(SearchHit.class);
+        when(hit.getContent()).thenReturn(doc);
+        when(hit.getSortValues()).thenReturn(List.of(1000L, "n1"));
+        SearchHits<NotificationDocument> hits = mock(SearchHits.class);
+        when(hits.getSearchHits()).thenReturn(List.of(hit));
+        doReturn(hits).when(operations).search(any(Query.class), eq(NotificationDocument.class));
+
+        // logsOnly=false (notifications tab) + date/hour filters must build a filtered query
+        service.list(false, null, "2026-09-28", "10", null, 100);
+
+        ArgumentCaptor<Query> captor = ArgumentCaptor.forClass(Query.class);
+        verify(operations).search(captor.capture(), eq(NotificationDocument.class));
+        Query query = captor.getValue();
+        assertTrue(query instanceof NativeQuery, "expected NativeQuery but got " + query.getClass());
+        String json = JsonpUtils.toString(((NativeQuery) query).getQuery());
+        assertTrue(json.contains("date"), "query should filter by date: " + json);
+        assertTrue(json.contains("2026-09-28"), "query should filter by date value: " + json);
+        assertTrue(json.contains("hour"), "query should filter by hour: " + json);
+        assertTrue(json.contains("\"10\""), "query should filter by hour value: " + json);
     }
 }

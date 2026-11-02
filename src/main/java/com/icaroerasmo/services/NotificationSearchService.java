@@ -216,12 +216,18 @@ public class NotificationSearchService {
     /**
      * Lists notifications. {@code logsOnly} selects DOCUMENT rows only (the "has
      * logs" filter); otherwise all notifications are returned (including DOCUMENT).
+     * {@code kind}/{@code date}/{@code hour} filter both sets.
      */
     public NotificationPage list(boolean logsOnly, String kind, String date, String hour, String cursor, int limit) {
         NativeQueryBuilder builder = NativeQuery.builder();
-        if (logsOnly) {
+        boolean hasFilter = (kind != null && !kind.isBlank())
+                || (date != null && !date.isBlank())
+                || (hour != null && !hour.isBlank());
+        if (logsOnly || hasFilter) {
             builder.withQuery(q -> q.bool(b -> {
-                b.must(m -> m.term(t -> t.field("mediaType").value("DOCUMENT")));
+                if (logsOnly) {
+                    b.must(m -> m.term(t -> t.field("mediaType").value("DOCUMENT")));
+                }
                 applyFilters(b, kind, date, hour);
                 return b;
             }));
@@ -387,13 +393,13 @@ public class NotificationSearchService {
     private NotificationSummary toSummaryDoc(NotificationDocument d) {
         return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
                 d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
-                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize(), d.getPersonNames());
+                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize(), d.getPersonNames(), false);
     }
 
     private NotificationSummary toSummaryLog(LogDocument d) {
         return new NotificationSummary(d.getId(), d.getSender(), d.getMediaType(), d.getKind(),
                 d.getSummary(), d.getFileId(), d.getFilename(), d.getSentAt(),
-                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize(), List.of());
+                d.getTimestamp(), d.getDate(), d.getHour(), d.getSize(), List.of(), false);
     }
 
     private String decode(byte[] payload) {
